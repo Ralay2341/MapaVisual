@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -21,6 +20,8 @@
     --mint:#38C79A;
     --mint-dim:#173328;
     --pillar:#D9483B;
+    --picking:#38BDF8; /* Azul Neón / Cyan para resaltar PICKING */
+    --picking-dim:#0C2A3A;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -75,6 +76,7 @@
   .kpi .lbl{font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; margin-top:2px;}
   .kpi.amber .num{color:var(--amber);}
   .kpi.mint .num{color:var(--mint);}
+  .kpi.picking .num{color:var(--picking);}
 
   /* ---------- Legend ---------- */
   .legend{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:24px; font-size:12px; color:var(--text-muted);}
@@ -83,6 +85,7 @@
   .swatch.ocupado{background:var(--amber);}
   .swatch.vacio{background:transparent; border:1.5px dashed var(--border);}
   .swatch.pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px);}
+  .swatch.picking{background:var(--picking-dim); border:1.5px solid var(--picking); color:var(--picking); font-weight:700; text-align:center; line-height:11px; font-size:10px;}
 
   /* ---------- Racks grid ---------- */
   #racks{display:flex; flex-direction:column; gap:20px;}
@@ -119,6 +122,12 @@
   .slot.tipo-pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px); border-color:var(--pillar);}
   .slot.tipo-bajo{border-style:solid; border-color:var(--mint); }
   .slot.tipo-bajo.ocupado{background:var(--mint-dim); border-color:var(--mint); color:var(--mint);}
+  
+  /* ESTILOS EXCLUSIVOS PARA PICKING */
+  .slot.tipo-picking{border-style:solid; border-color:var(--picking); color:var(--picking); font-weight:700;}
+  .slot.tipo-picking.vacio{background:var(--picking-dim); color:var(--picking);}
+  .slot.tipo-picking.ocupado{background:var(--picking-dim); border-color:var(--amber); color:var(--amber);}
+  
   .slot.hueco{border:none; background:none;}
 
   .resumen-rack{
@@ -156,12 +165,14 @@
   <div class="kpi"><div class="num" id="kpiTotal">–</div><div class="lbl">Posiciones</div></div>
   <div class="kpi amber"><div class="num" id="kpiLlenas">–</div><div class="lbl">Llenas</div></div>
   <div class="kpi mint"><div class="num" id="kpiVacias">–</div><div class="lbl">Vacías</div></div>
+  <div class="kpi picking"><div class="num" id="kpiPicking">–</div><div class="lbl">Picking</div></div>
   <div class="kpi"><div class="num" id="kpiRacks">–</div><div class="lbl">Racks</div></div>
 </div>
 
 <div class="legend">
-  <span><i class="swatch ocupado"></i>Ocupado</span>
+  <span><i class="swatch ocupado"></i>Ocupado (X)</span>
   <span><i class="swatch vacio"></i>Vacío</span>
+  <span><i class="swatch picking">P</i>Picking (P)</span>
   <span><i class="swatch pilar"></i>Pilar</span>
   <span>N = Nivel (N1 abajo)</span>
 </div>
@@ -198,7 +209,6 @@ function parseCSV(texto) {
   return filas.filter(f => f.length > 1 || f[0] !== '');
 }
 
-/* Normaliza un texto de encabezado eliminando espacios extras y convirtiendo a mayúsculas */
 function normalizar(txt) {
   return String(txt || '').trim().toUpperCase();
 }
@@ -219,7 +229,6 @@ async function cargarDatos() {
     const filas = parseCSV(texto);
     if (!filas.length) throw new Error('La hoja no devolvió datos.');
 
-    // Mapeo flexible de columnas para evitar fallos por espacios o diferencias minúsculas
     let headerRow = -1;
     let idx = {};
 
@@ -286,12 +295,13 @@ function renderTodo(filtro) {
   let ids = Object.keys(RACKS).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
   if (filtro) ids = ids.filter(id => id.toLowerCase().includes(filtro.toLowerCase()));
 
-  let totalPos = 0, totalLlenas = 0;
+  let totalPos = 0, totalLlenas = 0, totalPicking = 0;
 
   ids.forEach(rackId => {
     const regs = RACKS[rackId];
     totalPos += regs.length;
     totalLlenas += regs.filter(ocupado).length;
+    totalPicking += regs.filter(r => r.tipo === 'PICKING').length;
     cont.appendChild(renderRackCard(rackId, regs));
   });
 
@@ -299,6 +309,7 @@ function renderTodo(filtro) {
   document.getElementById('kpiTotal').textContent = totalPos;
   document.getElementById('kpiLlenas').textContent = totalLlenas;
   document.getElementById('kpiVacias').textContent = totalPos - totalLlenas;
+  document.getElementById('kpiPicking').textContent = totalPicking;
   document.getElementById('kpiRacks').textContent = ids.length;
 }
 
@@ -328,7 +339,7 @@ function renderRackCard(rackId, registros) {
   const llenas = registros.filter(ocupado).length;
   const vacias = total - llenas;
   const pct = total ? Math.round((llenas / total) * 100) : 0;
-  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0 };
+  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0, PICKING: 0 };
   registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
   const primero = registros[0] || {};
 
@@ -376,11 +387,21 @@ function renderRackCard(rackId, registros) {
         } else {
           const occ = ocupado(reg);
           let cls = 'slot ' + (occ ? 'ocupado' : 'vacio');
+          
           if (reg.tipo === 'PILAR') cls += ' tipo-pilar';
           if (reg.tipo === 'BAJO') cls += ' tipo-bajo';
+          if (reg.tipo === 'PICKING') cls += ' tipo-picking';
+          
           td.className = cls;
-          td.textContent = occ ? 'X' : '';
-          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · ${reg.tipo}\nSAP: ${reg.codsap} · Cant: ${reg.cant}`;
+          
+          // LÓGICA DE TEXTO A MOSTRAR:
+          if (reg.tipo === 'PICKING') {
+            td.textContent = 'P'; // Muestra P de color si es Picking
+          } else {
+            td.textContent = occ ? 'X' : ''; // Mantiene 'X' si está ocupado o vacío si está libre
+          }
+          
+          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · TIPO: ${reg.tipo}\nSAP: ${reg.codsap} · Cant: ${reg.cant}`;
         }
         tr.appendChild(td);
       }
@@ -397,6 +418,7 @@ function renderRackCard(rackId, registros) {
   resumen.innerHTML = `
     <div class="k">Vacías</div><div class="v">${vacias}</div>
     <div class="k">Llenas</div><div class="v">${llenas}</div>
+    <div class="k">Picking</div><div class="v" style="color:var(--picking);">${tipoCount.PICKING}</div>
     <div class="k">Simple</div><div class="v">${tipoCount.SIMPLE}</div>
     <div class="k">Doble</div><div class="v">${tipoCount.DOBLE}</div>
     <div class="k">Bajo</div><div class="v">${tipoCount.BAJO}</div>
@@ -415,3 +437,4 @@ cargarDatos();
 </script>
 </body>
 </html>
+
