@@ -168,18 +168,14 @@
 
 <div id="racks"></div>
 
-<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/1U8vxA1RGfLaZCPL-1MOkDhgRxZMoGdX0ZcPNw8OCluA/edit" target="_blank">Google Sheet</a></footer>
+<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv" target="_blank">Google Sheet (CSV)</a></footer>
 
 <script>
 /* ===================== CONFIGURACIÓN ===================== */
-const CONFIG = {
-  SHEET_ID: '1U8vxA1RGfLaZCPL-1MOkDhgRxZMoGdX0ZcPNw8OCluA',
-  GID: '1014860091',      // pestaña "Sincronizado"
-  HOJA_NOMBRE: 'Sincronizado'
-};
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${CONFIG.GID}`;
+// Enlace al archivo CSV publicado en la web directamente
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv';
 
-// Lista de campos indispensables para construir los racks
+// Columnas esenciales para formar la grilla de racks
 const CAMPOS_CRITICOS = ['RACK', 'UBIC', 'NIVEL'];
 
 let RACKS = {}; // rackId -> registros[]
@@ -190,8 +186,8 @@ function normalizarTexto(txt) {
     .trim()
     .toUpperCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Elimina tildes
-    .replace(/[^A-Z0-9]/g, "");     // Elimina caracteres especiales
+    .replace(/[\u0300-\u036f]/g, "") // Remueve tildes
+    .replace(/[^A-Z0-9]/g, "");     // Remueve caracteres especiales
 }
 
 /* ===================== PARSEO CSV ===================== */
@@ -253,10 +249,10 @@ async function cargarDatos() {
     }
 
     if (headerRow === -1) {
-      throw new Error('No se encontraron las columnas clave (RACK, UBIC, NIVEL) en los encabezados.');
+      throw new Error('No se encontraron las columnas clave (RACK, UBIC, NIVEL) en las primeras filas.');
     }
 
-    // Helper para obtener el valor de una columna según su nombre flexible
+    // Helper para obtener el valor de una columna normalizando el nombre
     const getVal = (fila, nombreColumna) => {
       const idx = mapIdx[normalizarTexto(nombreColumna)];
       return idx !== undefined && fila[idx] ? fila[idx].trim() : '';
@@ -267,7 +263,7 @@ async function cargarDatos() {
       const fila = filas[f];
       let rack = getVal(fila, 'RACK');
       if (!rack) continue;
-      if (/^\d$/.test(rack)) rack = '0' + rack; // normaliza 1 -> 01
+      if (/^\d$/.test(rack)) rack = '0' + rack; // Normaliza 1 -> 01
 
       if (!RACKS[rack]) RACKS[rack] = [];
       RACKS[rack].push({
@@ -291,8 +287,7 @@ async function cargarDatos() {
     status.className = 'error';
     status.style.display = 'block';
     status.innerHTML = '⚠ No se pudo cargar la hoja: ' + err.message +
-      '<br>1) Verifica que la hoja esté compartida como "Cualquier persona con el enlace: Lector".' +
-      '<br>2) Confirma que el GID (' + CONFIG.GID + ') corresponde a la pestaña "' + CONFIG.HOJA_NOMBRE + '".';
+      '<br>Verifica que el archivo siga publicado correctamente en la web desde Google Sheets.';
   } finally {
     btn.disabled = false;
   }
