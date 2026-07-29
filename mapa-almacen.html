@@ -20,8 +20,6 @@
     --mint:#38C79A;
     --mint-dim:#173328;
     --pillar:#D9483B;
-    --picking:#3FA9F5;
-    --picking-dim:#152A3D;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -84,7 +82,6 @@
   .swatch.ocupado{background:var(--amber);}
   .swatch.vacio{background:transparent; border:1.5px dashed var(--border);}
   .swatch.pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px);}
-  .swatch.picking{background:var(--picking);}
 
   /* ---------- Racks grid ---------- */
   #racks{display:flex; flex-direction:column; gap:20px;}
@@ -121,8 +118,6 @@
   .slot.tipo-pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px); border-color:var(--pillar);}
   .slot.tipo-bajo{border-style:solid; border-color:var(--mint); }
   .slot.tipo-bajo.ocupado{background:var(--mint-dim); border-color:var(--mint); color:var(--mint);}
-  .slot.tipo-picking{border-color:var(--picking);}
-  .slot.tipo-picking.ocupado{background:var(--picking-dim); border-color:var(--picking); color:var(--picking);}
   .slot.hueco{border:none; background:none;}
 
   .resumen-rack{
@@ -167,7 +162,6 @@
   <span><i class="swatch ocupado"></i>Ocupado</span>
   <span><i class="swatch vacio"></i>Vacío</span>
   <span><i class="swatch pilar"></i>Pilar</span>
-  <span><i class="swatch picking"></i>Picking</span>
   <span>N = Nivel (N1 abajo)</span>
 </div>
 
@@ -331,7 +325,7 @@ function renderRackCard(rackId, registros) {
   const llenas = registros.filter(ocupado).length;
   const vacias = total - llenas;
   const pct = total ? Math.round((llenas / total) * 100) : 0;
-  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0, PICKING: 0 };
+  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0 };
   registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
   const primero = registros[0] || {};
 
@@ -381,9 +375,8 @@ function renderRackCard(rackId, registros) {
           let cls = 'slot ' + (occ ? 'ocupado' : 'vacio');
           if (reg.tipo === 'PILAR') cls += ' tipo-pilar';
           if (reg.tipo === 'BAJO') cls += ' tipo-bajo';
-          if (reg.tipo === 'PICKING') cls += ' tipo-picking';
           td.className = cls;
-          td.textContent = occ ? (reg.tipo === 'PICKING' ? 'P' : 'X') : '';
+          td.textContent = occ ? 'X' : '';
           td.title = `UBIC ${reg.ubic} · N${reg.nivel} · ${reg.tipo}\nSAP: ${reg.codsap} · Cant: ${reg.cant}`;
         }
         tr.appendChild(td);
@@ -405,7 +398,6 @@ function renderRackCard(rackId, registros) {
     <div class="k">Doble</div><div class="v">${tipoCount.DOBLE}</div>
     <div class="k">Bajo</div><div class="v">${tipoCount.BAJO}</div>
     <div class="k">Pilar</div><div class="v">${tipoCount.PILAR}</div>
-    <div class="k">Picking</div><div class="v">${tipoCount.PICKING}</div>
   `;
   card.appendChild(resumen);
 
