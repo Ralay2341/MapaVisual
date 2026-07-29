@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa de Almacén — ALM9037</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1720;
+    --surface:#17222D;
+    --surface-2:#1D2A37;
+    --border:#2C3B49;
+    --text:#E8EDF2;
+    --text-muted:#7F93A4;
+    --amber:#E8A33D;
+    --amber-dim:#4A3A22;
+    --mint:#38C79A;
+    --mint-dim:#173328;
+    --pillar:#D9483B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    min-height:100vh;
+    padding:24px 20px 60px;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk', sans-serif;}
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between;
+    gap:16px; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--border);
+  }
+  .titleblock .eyebrow{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--amber);
+    margin:0 0 6px;
+  }
+  .titleblock h1{font-size:26px; font-weight:700; margin:0; letter-spacing:-.01em;}
+  .titleblock p{margin:6px 0 0; color:var(--text-muted); font-size:13px;}
+  .controls{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  input[type=text]{
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:9px 12px; border-radius:6px; font-family:inherit; font-size:13px; width:200px;
+  }
+  input[type=text]:focus{outline:none; border-color:var(--amber);}
+  button{
+    background:var(--amber); color:#1a1305; border:none; font-weight:700;
+    padding:9px 16px; border-radius:6px; font-family:'Space Grotesk',sans-serif; font-size:13px;
+    cursor:pointer; transition:filter .15s ease;
+  }
+  button:hover{filter:brightness(1.08);}
+  button:disabled{opacity:.5; cursor:wait;}
+  .timestamp{font-size:11px; color:var(--text-muted);}
+
+  /* ---------- Status / summary ---------- */
+  #status{padding:14px 16px; border-radius:8px; margin-bottom:20px; font-size:13px; display:none;}
+  #status.error{display:block; background:#2E1414; border:1px solid var(--pillar); color:#F2C4BE;}
+  #status.loading{display:block; background:var(--surface); border:1px solid var(--border); color:var(--text-muted);}
+
+  .resumen-general{
+    display:flex; gap:14px; flex-wrap:wrap; margin-bottom:26px;
+  }
+  .kpi{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:12px 18px; min-width:110px;
+  }
+  .kpi .num{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;}
+  .kpi .lbl{font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; margin-top:2px;}
+  .kpi.amber .num{color:var(--amber);}
+  .kpi.mint .num{color:var(--mint);}
+
+  /* ---------- Legend ---------- */
+  .legend{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:24px; font-size:12px; color:var(--text-muted);}
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .swatch{width:14px; height:14px; border-radius:3px; display:inline-block; flex:none;}
+  .swatch.ocupado{background:var(--amber);}
+  .swatch.vacio{background:transparent; border:1.5px dashed var(--border);}
+  .swatch.pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px);}
+
+  /* ---------- Racks grid ---------- */
+  #racks{display:flex; flex-direction:column; gap:20px;}
+  .rack-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px; display:flex; flex-wrap:wrap; gap:22px; align-items:flex-start;
+  }
+  .rack-head{
+    display:flex; flex-direction:column; gap:10px; min-width:150px;
+  }
+  .rack-head h3{margin:0; font-size:17px;}
+  .rack-head .meta{font-size:11px; color:var(--text-muted); line-height:1.6;}
+  .occ-bar{
+    width:100%; height:6px; border-radius:4px; background:var(--surface-2); overflow:hidden;
+  }
+  .occ-bar > i{display:block; height:100%; background:var(--amber);}
+  .occ-pct{font-size:11px; color:var(--text-muted);}
+
+  .rack-grid-wrap{overflow-x:auto; flex:1; min-width:260px;}
+  .rack-grid{border-collapse:separate; border-spacing:3px; font-size:11px;}
+  .rack-grid th{
+    color:var(--text-muted); font-weight:500; font-size:10px; padding:2px 4px;
+    text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;
+  }
+  .rack-grid td.nivel-lbl{
+    color:var(--text-muted); font-weight:700; padding-right:6px; white-space:nowrap; text-align:right;
+  }
+  .slot{
+    width:26px; height:22px; border-radius:3px; text-align:center; vertical-align:middle;
+    border:1.5px dashed var(--border); background:transparent; cursor:default;
+  }
+  .slot.ocupado{border-style:solid; background:var(--amber-dim); border-color:var(--amber); color:var(--amber); font-weight:700;}
+  .slot.vacio{border-style:dashed; color:transparent;}
+  .slot.tipo-pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px); border-color:var(--pillar);}
+  .slot.tipo-bajo{border-style:solid; border-color:var(--mint); }
+  .slot.tipo-bajo.ocupado{background:var(--mint-dim); border-color:var(--mint); color:var(--mint);}
+  .slot.hueco{border:none; background:none;}
+
+  .resumen-rack{
+    display:grid; grid-template-columns:auto auto; gap:3px 14px; font-size:11px; min-width:120px;
+  }
+  .resumen-rack .k{color:var(--text-muted);}
+  .resumen-rack .v{font-weight:700; text-align:right; font-family:'Space Grotesk',sans-serif;}
+
+  footer{margin-top:36px; font-size:11px; color:var(--text-muted); text-align:center;}
+  footer a{color:var(--amber); text-decoration:none;}
+
+  @media (max-width:640px){
+    header{flex-direction:column; align-items:flex-start;}
+    .rack-card{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="titleblock">
+    <p class="eyebrow">ALM9037 · Sincronizado</p>
+    <h1>Mapa de Almacén</h1>
+    <p>Representación visual de ocupación por rack, nivel y posición.</p>
+  </div>
+  <div class="controls">
+    <input type="text" id="buscador" placeholder="Buscar rack…">
+    <button id="btnRefrescar">Actualizar</button>
+  </div>
+</header>
+
+<div id="status"></div>
+
+<div class="resumen-general" id="resumenGeneral" style="display:none;">
+  <div class="kpi"><div class="num" id="kpiTotal">–</div><div class="lbl">Posiciones</div></div>
+  <div class="kpi amber"><div class="num" id="kpiLlenas">–</div><div class="lbl">Llenas</div></div>
+  <div class="kpi mint"><div class="num" id="kpiVacias">–</div><div class="lbl">Vacías</div></div>
+  <div class="kpi"><div class="num" id="kpiRacks">–</div><div class="lbl">Racks</div></div>
+</div>
+
+<div class="legend">
+  <span><i class="swatch ocupado"></i>Ocupado</span>
+  <span><i class="swatch vacio"></i>Vacío</span>
+  <span><i class="swatch pilar"></i>Pilar</span>
+  <span>N = Nivel (N1 abajo)</span>
+</div>
+
+<div id="racks"></div>
+
+<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/1U8vxA1RGfLaZCPL-1MOkDhgRxZMoGdX0ZcPNw8OCluA/edit" target="_blank">Google Sheet</a></footer>
+
+<script>
+/* ===================== CONFIGURACIÓN ===================== */
+const CONFIG = {
+  SHEET_ID: '1U8vxA1RGfLaZCPL-1MOkDhgRxZMoGdX0ZcPNw8OCluA',
+  GID: '1014860091',      // pestaña "Sincronizado"
+  HOJA_NOMBRE: 'Sincronizado'
+};
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/export?format=csv&gid=${CONFIG.GID}`;
+
+const REQUERIDAS = ['UBICACION','ALMACÉN','SECTOR','RACK','UBIC','NIVEL','TIPO','COD-SAP','CANT','SAP-WARE'];
+
+let RACKS = {}; // rackId -> registros[]
+
+/* ===================== PARSEO CSV ===================== */
+function parseCSV(texto) {
+  const filas = [];
+  let fila = [], campo = '', enComillas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i], next = texto[i + 1];
+    if (enComillas) {
+      if (c === '"' && next === '"') { campo += '"'; i++; }
+      else if (c === '"') { enComillas = false; }
+      else { campo += c; }
+    } else {
+      if (c === '"') enComillas = true;
+      else if (c === ',') { fila.push(campo); campo = ''; }
+      else if (c === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; }
+      else if (c === '\r') { /* ignorar */ }
+      else campo += c;
+    }
+  }
+  if (campo.length || fila.length) { fila.push(campo); filas.push(fila); }
+  return filas.filter(f => f.length > 1 || f[0] !== '');
+}
+
+/* ===================== CARGA DE DATOS ===================== */
+async function cargarDatos() {
+  const status = document.getElementById('status');
+  const btn = document.getElementById('btnRefrescar');
+  btn.disabled = true;
+  status.className = 'loading';
+  status.style.display = 'block';
+  status.textContent = 'Cargando datos desde Google Sheets…';
+
+  try {
+    const resp = await fetch(CSV_URL, { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const texto = await resp.text();
+    const filas = parseCSV(texto);
+    if (!filas.length) throw new Error('La hoja no devolvió datos.');
+
+    const headers = filas[0].map(h => h.trim());
+    const idx = {};
+    headers.forEach((h, i) => idx[h] = i);
+    REQUERIDAS.forEach(r => {
+      if (!(r in idx)) throw new Error('No se encontró la columna "' + r + '" en el encabezado. Revisa nombres/tildes en la hoja.');
+    });
+
+    RACKS = {};
+    for (let f = 1; f < filas.length; f++) {
+      const fila = filas[f];
+      const rack = (fila[idx['RACK']] || '').trim();
+      if (!rack) continue;
+      if (!RACKS[rack]) RACKS[rack] = [];
+      RACKS[rack].push({
+        ubicacion: fila[idx['UBICACION']] || '',
+        almacen: fila[idx['ALMACÉN']] || '',
+        sector: fila[idx['SECTOR']] || '',
+        rack: rack,
+        ubic: (fila[idx['UBIC']] || '').trim(),
+        nivel: (fila[idx['NIVEL']] || '').trim(),
+        tipo: (fila[idx['TIPO']] || '').trim().toUpperCase(),
+        codsap: fila[idx['COD-SAP']] || '',
+        cant: fila[idx['CANT']] || '',
+        sapware: fila[idx['SAP-WARE']] || ''
+      });
+    }
+
+    status.style.display = 'none';
+    document.getElementById('ts').textContent = new Date().toLocaleString('es-CL');
+    renderTodo();
+  } catch (err) {
+    status.className = 'error';
+    status.style.display = 'block';
+    status.innerHTML = '⚠ No se pudo cargar la hoja: ' + err.message +
+      '<br>Verifica que "' + CONFIG.HOJA_NOMBRE + '" esté compartida como "Cualquier persona con el enlace: Lector", o publica la hoja en Archivo → Compartir → Publicar en la web.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ===================== RENDER ===================== */
+function ocupado(reg) {
+  return reg.sapware !== '' && reg.sapware !== null && reg.sapware !== undefined;
+}
+
+function renderTodo(filtro) {
+  const cont = document.getElementById('racks');
+  cont.innerHTML = '';
+
+  let ids = Object.keys(RACKS).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  if (filtro) ids = ids.filter(id => id.toLowerCase().includes(filtro.toLowerCase()));
+
+  let totalPos = 0, totalLlenas = 0;
+
+  ids.forEach(rackId => {
+    const regs = RACKS[rackId];
+    totalPos += regs.length;
+    totalLlenas += regs.filter(ocupado).length;
+    cont.appendChild(renderRackCard(rackId, regs));
+  });
+
+  document.getElementById('resumenGeneral').style.display = 'flex';
+  document.getElementById('kpiTotal').textContent = totalPos;
+  document.getElementById('kpiLlenas').textContent = totalLlenas;
+  document.getElementById('kpiVacias').textContent = totalPos - totalLlenas;
+  document.getElementById('kpiRacks').textContent = ids.length;
+}
+
+function renderRackCard(rackId, registros) {
+  const ubics = [...new Set(registros.map(r => r.ubic))]
+    .sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  const niveles = [...new Set(registros.map(r => r.nivel))]
+    .sort((a, b) => (parseFloat(b) - parseFloat(a)) || b.localeCompare(a));
+
+  const celdas = {};
+  registros.forEach(r => {
+    const key = r.ubic + '|' + r.nivel;
+    (celdas[key] = celdas[key] || []).push(r);
+  });
+  const subCols = {};
+  ubics.forEach(u => {
+    let max = 1;
+    niveles.forEach(n => { const a = celdas[u + '|' + n]; if (a && a.length > max) max = a.length; });
+    subCols[u] = max;
+  });
+
+  const card = document.createElement('div');
+  card.className = 'rack-card';
+
+  // --- Cabecera / resumen de ocupación ---
+  const total = registros.length;
+  const llenas = registros.filter(ocupado).length;
+  const vacias = total - llenas;
+  const pct = total ? Math.round((llenas / total) * 100) : 0;
+  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0 };
+  registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
+  const primero = registros[0] || {};
+
+  const head = document.createElement('div');
+  head.className = 'rack-head';
+  head.innerHTML = `
+    <h3>RACK ${rackId}</h3>
+    <div class="meta">${primero.almacen || ''} ${primero.sector ? '· Sector ' + primero.sector : ''}</div>
+    <div class="occ-bar"><i style="width:${pct}%"></i></div>
+    <div class="occ-pct">${pct}% ocupado (${llenas}/${total})</div>
+  `;
+  card.appendChild(head);
+
+  // --- Grid del rack ---
+  const wrap = document.createElement('div');
+  wrap.className = 'rack-grid-wrap';
+  const table = document.createElement('table');
+  table.className = 'rack-grid';
+
+  const thead = document.createElement('tr');
+  thead.appendChild(document.createElement('th'));
+  ubics.forEach(u => {
+    const th = document.createElement('th');
+    th.colSpan = subCols[u];
+    th.textContent = u;
+    thead.appendChild(th);
+  });
+  table.appendChild(thead);
+
+  niveles.forEach(n => {
+    const tr = document.createElement('tr');
+    const tdLbl = document.createElement('td');
+    tdLbl.className = 'nivel-lbl';
+    tdLbl.textContent = 'N' + n;
+    tr.appendChild(tdLbl);
+
+    ubics.forEach(u => {
+      const arr = celdas[u + '|' + n] || [];
+      const span = subCols[u];
+      for (let s = 0; s < span; s++) {
+        const reg = arr[s];
+        const td = document.createElement('td');
+        if (!reg) {
+          td.className = 'slot hueco';
+        } else {
+          const occ = ocupado(reg);
+          let cls = 'slot ' + (occ ? 'ocupado' : 'vacio');
+          if (reg.tipo === 'PILAR') cls += ' tipo-pilar';
+          if (reg.tipo === 'BAJO') cls += ' tipo-bajo';
+          td.className = cls;
+          td.textContent = occ ? 'X' : '';
+          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · ${reg.tipo}\nSAP: ${reg.codsap} · Cant: ${reg.cant}`;
+        }
+        tr.appendChild(td);
+      }
+    });
+    table.appendChild(tr);
+  });
+
+  wrap.appendChild(table);
+  card.appendChild(wrap);
+
+  // --- Resumen lateral ---
+  const resumen = document.createElement('div');
+  resumen.className = 'resumen-rack';
+  resumen.innerHTML = `
+    <div class="k">Vacías</div><div class="v">${vacias}</div>
+    <div class="k">Llenas</div><div class="v">${llenas}</div>
+    <div class="k">Simple</div><div class="v">${tipoCount.SIMPLE}</div>
+    <div class="k">Doble</div><div class="v">${tipoCount.DOBLE}</div>
+    <div class="k">Bajo</div><div class="v">${tipoCount.BAJO}</div>
+    <div class="k">Pilar</div><div class="v">${tipoCount.PILAR}</div>
+  `;
+  card.appendChild(resumen);
+
+  return card;
+}
+
+/* ===================== EVENTOS ===================== */
+document.getElementById('btnRefrescar').addEventListener('click', cargarDatos);
+document.getElementById('buscador').addEventListener('input', e => renderTodo(e.target.value.trim()));
+
+cargarDatos();
+</script>
+</body>
+</html>
