@@ -220,18 +220,27 @@ async function cargarDatos() {
     const filas = parseCSV(texto);
     if (!filas.length) throw new Error('La hoja no devolvió datos.');
 
-    const headers = filas[0].map(h => h.trim());
-    const idx = {};
-    headers.forEach((h, i) => idx[h] = i);
-    REQUERIDAS.forEach(r => {
-      if (!(r in idx)) throw new Error('No se encontró la columna "' + r + '" en el encabezado. Revisa nombres/tildes en la hoja.');
-    });
+    // Buscar automáticamente la fila de encabezados (en esta hoja es la fila 4,
+    // pero se detecta solo por si en el futuro cambia)
+    let headerRow = -1, idx = {};
+    const LIMITE_BUSQUEDA = Math.min(filas.length, 20);
+    for (let f = 0; f < LIMITE_BUSQUEDA; f++) {
+      const candidatos = filas[f].map(h => String(h).trim());
+      const tempIdx = {};
+      candidatos.forEach((h, i) => tempIdx[h] = i);
+      const encontradas = REQUERIDAS.filter(r => r in tempIdx).length;
+      if (encontradas === REQUERIDAS.length) { headerRow = f; idx = tempIdx; break; }
+    }
+    if (headerRow === -1) {
+      throw new Error('No se encontraron todas las columnas requeridas (' + REQUERIDAS.join(', ') + ') en las primeras ' + LIMITE_BUSQUEDA + ' filas. Revisa nombres/tildes exactos en la hoja.');
+    }
 
     RACKS = {};
-    for (let f = 1; f < filas.length; f++) {
+    for (let f = headerRow + 1; f < filas.length; f++) {
       const fila = filas[f];
-      const rack = (fila[idx['RACK']] || '').trim();
+      let rack = (fila[idx['RACK']] || '').trim();
       if (!rack) continue;
+      if (/^\d$/.test(rack)) rack = '0' + rack; // normaliza 1 -> 01 (columna H)
       if (!RACKS[rack]) RACKS[rack] = [];
       RACKS[rack].push({
         ubicacion: fila[idx['UBICACION']] || '',
