@@ -20,6 +20,8 @@
     --mint:#38C79A;
     --mint-dim:#173328;
     --pillar:#D9483B;
+    --picking:#3FA9F5;
+    --picking-dim:#152A3D;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -82,6 +84,7 @@
   .swatch.ocupado{background:var(--amber);}
   .swatch.vacio{background:transparent; border:1.5px dashed var(--border);}
   .swatch.pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px);}
+  .swatch.picking{background:var(--picking);}
 
   /* ---------- Racks grid ---------- */
   #racks{display:flex; flex-direction:column; gap:20px;}
@@ -112,13 +115,14 @@
   .slot{
     width:26px; height:22px; border-radius:3px; text-align:center; vertical-align:middle;
     border:1.5px dashed var(--border); background:transparent; cursor:default;
-    font-weight:700; font-size:11px; line-height:19px;
   }
-  .slot.ocupado{border-style:solid; background:var(--amber-dim); border-color:var(--amber); color:var(--amber);}
+  .slot.ocupado{border-style:solid; background:var(--amber-dim); border-color:var(--amber); color:var(--amber); font-weight:700;}
   .slot.vacio{border-style:dashed; color:transparent;}
-  .slot.tipo-pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px); border-color:var(--pillar); color:transparent;}
+  .slot.tipo-pilar{background:repeating-linear-gradient(45deg, var(--pillar) 0 4px, #1a0908 4px 8px); border-color:var(--pillar);}
   .slot.tipo-bajo{border-style:solid; border-color:var(--mint); }
   .slot.tipo-bajo.ocupado{background:var(--mint-dim); border-color:var(--mint); color:var(--mint);}
+  .slot.tipo-picking{border-color:var(--picking);}
+  .slot.tipo-picking.ocupado{background:var(--picking-dim); border-color:var(--picking); color:var(--picking);}
   .slot.hueco{border:none; background:none;}
 
   .resumen-rack{
@@ -160,35 +164,29 @@
 </div>
 
 <div class="legend">
-  <span><i class="swatch ocupado"></i>Ocupado (X)</span>
+  <span><i class="swatch ocupado"></i>Ocupado</span>
   <span><i class="swatch vacio"></i>Vacío</span>
   <span><i class="swatch pilar"></i>Pilar</span>
+  <span><i class="swatch picking"></i>Picking</span>
   <span>N = Nivel (N1 abajo)</span>
 </div>
 
 <div id="racks"></div>
 
-<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv" target="_blank">Google Sheet (CSV)</a></footer>
+<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/1U8vxA1RGfLaZCPL-1MOkDhgRxZMoGdX0ZcPNw8OCluA/edit" target="_blank">Google Sheet</a></footer>
 
 <script>
 /* ===================== CONFIGURACIÓN ===================== */
-// URL directa del CSV publicado en la web
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv';
+const CONFIG = {
+  SHEET_ID: '1U8vxA1RGfLaZCPL-1MOkDhgRxZMoGdX0ZcPNw8OCluA',
+  GID: '1014860091',      // pestaña "Sincronizado"
+  HOJA_NOMBRE: 'Sincronizado'
+};
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${CONFIG.GID}`;
 
-// Columnas indispensables para formar la grilla
-const CAMPOS_CRITICOS = ['RACK', 'UBIC', 'NIVEL'];
+const REQUERIDAS = ['UBICACION','ALMACÉN','SECTOR','RACK','UBIC','NIVEL','TIPO','COD-SAP','CANT','SAP-WARE'];
 
 let RACKS = {}; // rackId -> registros[]
-
-/* ===================== HELPER NORMALIZACIÓN ===================== */
-function normalizarTexto(txt) {
-  return String(txt || '')
-    .trim()
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remueve tildes
-    .replace(/[^A-Z0-9]/g, "");     // Remueve caracteres especiales
-}
 
 /* ===================== PARSEO CSV ===================== */
 function parseCSV(texto) {
@@ -228,55 +226,39 @@ async function cargarDatos() {
     const filas = parseCSV(texto);
     if (!filas.length) throw new Error('La hoja no devolvió datos.');
 
-    // Búsqueda flexible de la fila de encabezados
-    let headerRow = -1;
-    let mapIdx = {};
-
+    // Buscar automáticamente la fila de encabezados (en esta hoja es la fila 4,
+    // pero se detecta solo por si en el futuro cambia)
+    let headerRow = -1, idx = {};
     const LIMITE_BUSQUEDA = Math.min(filas.length, 20);
     for (let f = 0; f < LIMITE_BUSQUEDA; f++) {
+      const candidatos = filas[f].map(h => String(h).trim());
       const tempIdx = {};
-      filas[f].forEach((col, index) => {
-        tempIdx[normalizarTexto(col)] = index;
-      });
-
-      // Verificar si los campos críticos existen en esta fila
-      const tienenCriticos = CAMPOS_CRITICOS.every(campo => campo in tempIdx);
-      if (tienenCriticos) {
-        headerRow = f;
-        mapIdx = tempIdx;
-        break;
-      }
+      candidatos.forEach((h, i) => tempIdx[h] = i);
+      const encontradas = REQUERIDAS.filter(r => r in tempIdx).length;
+      if (encontradas === REQUERIDAS.length) { headerRow = f; idx = tempIdx; break; }
     }
-
     if (headerRow === -1) {
-      throw new Error('No se encontraron las columnas clave (RACK, UBIC, NIVEL) en las primeras filas.');
+      throw new Error('No se encontraron todas las columnas requeridas (' + REQUERIDAS.join(', ') + ') en las primeras ' + LIMITE_BUSQUEDA + ' filas. Revisa nombres/tildes exactos en la hoja.');
     }
-
-    // Helper para obtener el valor de una columna normalizando el nombre
-    const getVal = (fila, nombreColumna) => {
-      const idx = mapIdx[normalizarTexto(nombreColumna)];
-      return idx !== undefined && fila[idx] ? fila[idx].trim() : '';
-    };
 
     RACKS = {};
     for (let f = headerRow + 1; f < filas.length; f++) {
       const fila = filas[f];
-      let rack = getVal(fila, 'RACK');
+      let rack = (fila[idx['RACK']] || '').trim();
       if (!rack) continue;
-      if (/^\d$/.test(rack)) rack = '0' + rack; // Normaliza 1 -> 01
-
+      if (/^\d$/.test(rack)) rack = '0' + rack; // normaliza 1 -> 01 (columna H)
       if (!RACKS[rack]) RACKS[rack] = [];
       RACKS[rack].push({
-        ubicacion: getVal(fila, 'UBICACION'),
-        almacen: getVal(fila, 'ALMACEN'),
-        sector: getVal(fila, 'SECTOR'),
+        ubicacion: fila[idx['UBICACION']] || '',
+        almacen: fila[idx['ALMACÉN']] || '',
+        sector: fila[idx['SECTOR']] || '',
         rack: rack,
-        ubic: getVal(fila, 'UBIC'),
-        nivel: getVal(fila, 'NIVEL'),
-        tipo: getVal(fila, 'TIPO').toUpperCase(),
-        codsap: getVal(fila, 'COD-SAP') || getVal(fila, 'CODSAP'),
-        cant: getVal(fila, 'CANT'),
-        sapware: getVal(fila, 'SAP-WARE') || getVal(fila, 'SAPWARE')
+        ubic: (fila[idx['UBIC']] || '').trim(),
+        nivel: (fila[idx['NIVEL']] || '').trim(),
+        tipo: (fila[idx['TIPO']] || '').trim().toUpperCase(),
+        codsap: fila[idx['COD-SAP']] || '',
+        cant: fila[idx['CANT']] || '',
+        sapware: fila[idx['SAP-WARE']] || ''
       });
     }
 
@@ -287,19 +269,17 @@ async function cargarDatos() {
     status.className = 'error';
     status.style.display = 'block';
     status.innerHTML = '⚠ No se pudo cargar la hoja: ' + err.message +
-      '<br>Verifica que el archivo siga publicado correctamente en la web desde Google Sheets.';
+      '<br>1) Verifica que la hoja esté compartida como "Cualquier persona con el enlace: Lector" (Compartir, arriba a la derecha en Sheets).' +
+      '<br>2) Confirma que el GID (' + CONFIG.GID + ') corresponde a la pestaña "' + CONFIG.HOJA_NOMBRE + '" — se ve en la URL después de #gid= al tener esa pestaña abierta.' +
+      '<br>3) Si sigue fallando, prueba Archivo → Compartir → Publicar en la web, selecciona la pestaña "' + CONFIG.HOJA_NOMBRE + '" en formato CSV, y avísame para adaptar el link.';
   } finally {
     btn.disabled = false;
   }
 }
 
 /* ===================== RENDER ===================== */
-// Una posición se considera OCUPADA si tiene datos en SAP-WARE, COD-SAP o CANT
 function ocupado(reg) {
-  const sw = (reg.sapware || '').trim();
-  const cod = (reg.codsap || '').trim();
-  const cant = (reg.cant || '').trim();
-  return sw !== '' || cod !== '' || (cant !== '' && cant !== '0');
+  return reg.sapware !== '' && reg.sapware !== null && reg.sapware !== undefined;
 }
 
 function renderTodo(filtro) {
@@ -351,7 +331,7 @@ function renderRackCard(rackId, registros) {
   const llenas = registros.filter(ocupado).length;
   const vacias = total - llenas;
   const pct = total ? Math.round((llenas / total) * 100) : 0;
-  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0 };
+  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0, PICKING: 0 };
   registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
   const primero = registros[0] || {};
 
@@ -401,11 +381,10 @@ function renderRackCard(rackId, registros) {
           let cls = 'slot ' + (occ ? 'ocupado' : 'vacio');
           if (reg.tipo === 'PILAR') cls += ' tipo-pilar';
           if (reg.tipo === 'BAJO') cls += ' tipo-bajo';
-          
+          if (reg.tipo === 'PICKING') cls += ' tipo-picking';
           td.className = cls;
-          // Muestra 'X' si está ocupado y está en blanco si está vacío o es pilar
-          td.textContent = (occ && reg.tipo !== 'PILAR') ? 'X' : '';
-          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · ${reg.tipo}\nSAP: ${reg.codsap || 'N/A'} · Cant: ${reg.cant || '0'}`;
+          td.textContent = occ ? (reg.tipo === 'PICKING' ? 'P' : 'X') : '';
+          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · ${reg.tipo}\nSAP: ${reg.codsap} · Cant: ${reg.cant}`;
         }
         tr.appendChild(td);
       }
@@ -426,6 +405,7 @@ function renderRackCard(rackId, registros) {
     <div class="k">Doble</div><div class="v">${tipoCount.DOBLE}</div>
     <div class="k">Bajo</div><div class="v">${tipoCount.BAJO}</div>
     <div class="k">Pilar</div><div class="v">${tipoCount.PILAR}</div>
+    <div class="k">Picking</div><div class="v">${tipoCount.PICKING}</div>
   `;
   card.appendChild(resumen);
 
@@ -440,4 +420,3 @@ cargarDatos();
 </script>
 </body>
 </html>
-
