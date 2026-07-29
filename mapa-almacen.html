@@ -176,7 +176,7 @@ const CONFIG = {
   GID: '1014860091',      // pestaña "Sincronizado"
   HOJA_NOMBRE: 'Sincronizado'
 };
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/export?format=csv&gid=${CONFIG.GID}`;
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${CONFIG.GID}`;
 
 const REQUERIDAS = ['UBICACION','ALMACÉN','SECTOR','RACK','UBIC','NIVEL','TIPO','COD-SAP','CANT','SAP-WARE'];
 
@@ -254,7 +254,9 @@ async function cargarDatos() {
     status.className = 'error';
     status.style.display = 'block';
     status.innerHTML = '⚠ No se pudo cargar la hoja: ' + err.message +
-      '<br>Verifica que "' + CONFIG.HOJA_NOMBRE + '" esté compartida como "Cualquier persona con el enlace: Lector", o publica la hoja en Archivo → Compartir → Publicar en la web.';
+      '<br>1) Verifica que la hoja esté compartida como "Cualquier persona con el enlace: Lector" (Compartir, arriba a la derecha en Sheets).' +
+      '<br>2) Confirma que el GID (' + CONFIG.GID + ') corresponde a la pestaña "' + CONFIG.HOJA_NOMBRE + '" — se ve en la URL después de #gid= al tener esa pestaña abierta.' +
+      '<br>3) Si sigue fallando, prueba Archivo → Compartir → Publicar en la web, selecciona la pestaña "' + CONFIG.HOJA_NOMBRE + '" en formato CSV, y avísame para adaptar el link.';
   } finally {
     btn.disabled = false;
   }
