@@ -20,7 +20,7 @@
     --mint:#38C79A;
     --mint-dim:#173328;
     --pillar:#D9483B;
-    --picking:#38BDF8; /* Azul Neón / Cyan para resaltar PICKING */
+    --picking:#38BDF8;
     --picking-dim:#0C2A3A;
   }
   *{box-sizing:border-box;}
@@ -123,7 +123,6 @@
   .slot.tipo-bajo{border-style:solid; border-color:var(--mint); }
   .slot.tipo-bajo.ocupado{background:var(--mint-dim); border-color:var(--mint); color:var(--mint);}
   
-  /* ESTILOS EXCLUSIVOS PARA PICKING */
   .slot.tipo-picking{border-style:solid; border-color:var(--picking); color:var(--picking); font-weight:700;}
   .slot.tipo-picking.vacio{background:var(--picking-dim); color:var(--picking);}
   .slot.tipo-picking.ocupado{background:var(--picking-dim); border-color:var(--amber); color:var(--amber);}
@@ -185,7 +184,7 @@
 /* ===================== CONFIGURACIÓN ===================== */
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv';
 
-let RACKS = {}; // rackId -> registros[]
+let RACKS = {};
 
 /* ===================== PARSEO CSV ===================== */
 function parseCSV(texto) {
@@ -256,8 +255,11 @@ async function cargarDatos() {
       if (!rack) continue;
       if (/^\d$/.test(rack)) rack = '0' + rack; // normaliza 1 -> 01
       
-      // Tomamos el valor de la Columna N (SAP-WARE)
-      const valorSapWare = (fila[idx['SAP-WARE']] || fila[idx['SAP WARE']] || '').trim();
+      // Columna N (SAP-WARE / Código SAP) e Índice directo o búsqueda por cabecera
+      const valorSapWare = (fila[idx['SAP-WARE']] || fila[idx['SAP WARE']] || fila[13] || '').trim();
+      
+      // Columna Q (CANT / Cantidad) por encabezado o índice 16 (A=0, Q=16)
+      const valorCant = (fila[idx['CANT']] || fila[16] || '').trim();
 
       if (!RACKS[rack]) RACKS[rack] = [];
       RACKS[rack].push({
@@ -268,11 +270,12 @@ async function cargarDatos() {
         ubic: (fila[idx['UBIC']] || '').trim(),
         nivel: (fila[idx['NIVEL']] || '').trim(),
         tipo: (fila[idx['TIPO']] || '').trim().toUpperCase(),
-        codsap: valorSapWare,  // <--- Ahora lee la Columna N como Código SAP
-        cant: fila[idx['CANT']] || '',
-        sapware: valorSapWare // <--- Lee la Columna N para validar Ocupado/Vacío
+        codsap: valorSapWare,  // Lee el Código SAP desde la Columna N
+        cant: valorCant,        // Lee la Cantidad directamente desde la Columna Q
+        sapware: valorSapWare   // Define Ocupado/Vacío con la Columna N
       });
     }
+
     status.style.display = 'none';
     document.getElementById('ts').textContent = new Date().toLocaleString('es-CL');
     renderTodo();
@@ -396,14 +399,13 @@ function renderRackCard(rackId, registros) {
           
           td.className = cls;
           
-          // LÓGICA DE TEXTO A MOSTRAR:
           if (reg.tipo === 'PICKING') {
-            td.textContent = 'P'; // Muestra P de color si es Picking
+            td.textContent = 'P';
           } else {
-            td.textContent = occ ? 'X' : ''; // Mantiene 'X' si está ocupado o vacío si está libre
+            td.textContent = occ ? 'X' : '';
           }
           
-          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · TIPO: ${reg.tipo}\nSAP: ${reg.codsap} · Cant: ${reg.cant}`;
+          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · TIPO: ${reg.tipo}\nSAP: ${reg.codsap}\nCant (Col. Q): ${reg.cant}`;
         }
         tr.appendChild(td);
       }
@@ -439,4 +441,3 @@ cargarDatos();
 </script>
 </body>
 </html>
-
