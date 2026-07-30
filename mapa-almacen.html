@@ -248,18 +248,21 @@ async function cargarDatos() {
       throw new Error('No se encontraron las columnas requeridas (RACK, UBIC, NIVEL) en las primeras filas.');
     }
 
+    // Mapeo robusto para Columna Q (Cant.) e índice fallback 16 (A=0, Q=16)
+    const colCantIdx = idx['CANT.'] ?? idx['CANT'] ?? idx['CANTIDAD'] ?? idx['QTY'] ?? 16;
+    
+    // Mapeo para Columna N (SAP-WARE) e índice fallback 13 (A=0, N=13)
+    const colSapIdx = idx['SAP-WARE'] ?? idx['SAP WARE'] ?? idx['COD-SAP'] ?? idx['COD SAP'] ?? 13;
+
     RACKS = {};
     for (let f = headerRow + 1; f < filas.length; f++) {
       const fila = filas[f];
       let rack = (fila[idx['RACK']] || '').trim();
       if (!rack) continue;
-      if (/^\d$/.test(rack)) rack = '0' + rack; // normaliza 1 -> 01
-      
-      // Columna N (SAP-WARE / Código SAP) e Índice directo o búsqueda por cabecera
-      const valorSapWare = (fila[idx['SAP-WARE']] || fila[idx['SAP WARE']] || fila[13] || '').trim();
-      
-      // Columna Q (CANT / Cantidad) por encabezado o índice 16 (A=0, Q=16)
-      const valorCant = (fila[idx['CANT']] || fila[16] || '').trim();
+      if (/^\d$/.test(rack)) rack = '0' + rack;
+
+      const valorSapWare = (fila[colSapIdx] || '').trim();
+      const valorCant = (fila[colCantIdx] || '').trim();
 
       if (!RACKS[rack]) RACKS[rack] = [];
       RACKS[rack].push({
@@ -270,9 +273,9 @@ async function cargarDatos() {
         ubic: (fila[idx['UBIC']] || '').trim(),
         nivel: (fila[idx['NIVEL']] || '').trim(),
         tipo: (fila[idx['TIPO']] || '').trim().toUpperCase(),
-        codsap: valorSapWare,  // Lee el Código SAP desde la Columna N
-        cant: valorCant,        // Lee la Cantidad directamente desde la Columna Q
-        sapware: valorSapWare   // Define Ocupado/Vacío con la Columna N
+        codsap: valorSapWare,
+        cant: valorCant !== '' ? valorCant : '0',
+        sapware: valorSapWare
       });
     }
 
@@ -405,7 +408,7 @@ function renderRackCard(rackId, registros) {
             td.textContent = occ ? 'X' : '';
           }
           
-          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · TIPO: ${reg.tipo}\nSAP: ${reg.codsap}\nCant (Col. Q): ${reg.cant}`;
+          td.title = `UBIC ${reg.ubic} · N${reg.nivel} · TIPO: ${reg.tipo}\nSAP: ${reg.codsap}\nCant: ${reg.cant}`;
         }
         tr.appendChild(td);
       }
