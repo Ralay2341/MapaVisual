@@ -46,11 +46,13 @@
   .titleblock h1{font-size:26px; font-weight:700; margin:0; letter-spacing:-.01em;}
   .titleblock p{margin:6px 0 0; color:var(--text-muted); font-size:13px;}
   .controls{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
-  input[type=text]{
+  input[type=text], input[type=number]{
     background:var(--surface); border:1px solid var(--border); color:var(--text);
-    padding:9px 12px; border-radius:6px; font-family:inherit; font-size:13px; width:200px;
+    padding:9px 12px; border-radius:6px; font-family:inherit; font-size:13px;
   }
-  input[type=text]:focus{outline:none; border-color:var(--amber);}
+  input[type=text]{width:200px;}
+  input[type=number]{width:110px;}
+  input[type=text]:focus, input[type=number]:focus{outline:none; border-color:var(--amber);}
   button{
     background:var(--amber); color:#1a1305; border:none; font-weight:700;
     padding:9px 16px; border-radius:6px; font-family:'Space Grotesk',sans-serif; font-size:13px;
@@ -65,18 +67,36 @@
   #status.error{display:block; background:#2E1414; border:1px solid var(--pillar); color:#F2C4BE;}
   #status.loading{display:block; background:var(--surface); border:1px solid var(--border); color:var(--text-muted);}
 
+  /* Resumen KPI y Piso */
+  .dashboard-top{
+    display:flex; flex-direction:column; gap:16px; margin-bottom:26px;
+  }
+  .resumen-section-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); margin-bottom:8px;
+  }
   .resumen-general{
-    display:flex; gap:14px; flex-wrap:wrap; margin-bottom:26px;
+    display:flex; gap:12px; flex-wrap:wrap; align-items:stretch;
   }
   .kpi{
     background:var(--surface); border:1px solid var(--border); border-radius:8px;
-    padding:12px 18px; min-width:110px;
+    padding:12px 16px; min-width:115px; display:flex; flex-direction:column; justify-content:center;
   }
-  .kpi .num{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;}
-  .kpi .lbl{font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; margin-top:2px;}
-  .kpi.amber .num{color:var(--amber);}
-  .kpi.mint .num{color:var(--mint);}
-  .kpi.picking .num{color:var(--picking);}
+  .kpi .num{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; line-height:1.1;}
+  .kpi .pct{font-size:11px; font-weight:700; margin-top:4px; opacity:.9;}
+  .kpi .lbl{font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; margin-top:4px;}
+  
+  .kpi.amber .num, .kpi.amber .pct{color:var(--amber);}
+  .kpi.mint .num, .kpi.mint .pct{color:var(--mint);}
+  .kpi.picking .num, .kpi.picking .pct{color:var(--picking);}
+
+  .kpi-input{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 14px; display:flex; flex-direction:column; justify-content:center; gap:4px;
+  }
+  .kpi-input label{font-size:10px; color:var(--amber); text-transform:uppercase; letter-spacing:.08em; font-weight:700;}
+
+  /* Separador vertical para los bloques */
+  .v-divider{width:1px; background:var(--border); margin:0 4px;}
 
   /* ---------- Legend ---------- */
   .legend{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:24px; font-size:12px; color:var(--text-muted);}
@@ -138,9 +158,10 @@
   footer{margin-top:36px; font-size:11px; color:var(--text-muted); text-align:center;}
   footer a{color:var(--amber); text-decoration:none;}
 
-  @media (max-width:640px){
+  @media (max-width:768px){
     header{flex-direction:column; align-items:flex-start;}
     .rack-card{flex-direction:column;}
+    .v-divider{display:none;}
   }
 </style>
 </head>
@@ -160,12 +181,62 @@
 
 <div id="status"></div>
 
-<div class="resumen-general" id="resumenGeneral" style="display:none;">
-  <div class="kpi"><div class="num" id="kpiTotal">–</div><div class="lbl">Posiciones</div></div>
-  <div class="kpi amber"><div class="num" id="kpiLlenas">–</div><div class="lbl">Llenas</div></div>
-  <div class="kpi mint"><div class="num" id="kpiVacias">–</div><div class="lbl">Vacías</div></div>
-  <div class="kpi picking"><div class="num" id="kpiPicking">–</div><div class="lbl">Picking</div></div>
-  <div class="kpi"><div class="num" id="kpiRacks">–</div><div class="lbl">Racks</div></div>
+<div class="dashboard-top" id="resumenGeneral" style="display:none;">
+  <div class="resumen-general">
+    <!-- BLOQUE 1: UBICACIONES DE RACK -->
+    <div class="kpi">
+      <div class="num" id="kpiTotal">–</div>
+      <div class="lbl">Pos. Racks</div>
+    </div>
+    
+    <div class="kpi amber">
+      <div class="num" id="kpiLlenas">–</div>
+      <div class="pct" id="kpiLlenasPct">0%</div>
+      <div class="lbl">Llenas</div>
+    </div>
+    
+    <div class="kpi mint">
+      <div class="num" id="kpiVacias">–</div>
+      <div class="pct" id="kpiVaciasPct">0%</div>
+      <div class="lbl">Vacías</div>
+    </div>
+    
+    <div class="kpi picking">
+      <div class="num" id="kpiPicking">–</div>
+      <div class="pct" id="kpiPickingPct">0%</div>
+      <div class="lbl">Picking</div>
+    </div>
+    
+    <div class="kpi">
+      <div class="num" id="kpiRacks">–</div>
+      <div class="lbl">Racks</div>
+    </div>
+
+    <!-- DIVISOR VISUAL -->
+    <div class="v-divider"></div>
+
+    <!-- BLOQUE 2: OCUPACIÓN DE PISO (BASE FIJA 927) -->
+    <div class="kpi">
+      <div class="num">927</div>
+      <div class="lbl">Base Piso</div>
+    </div>
+
+    <div class="kpi-input">
+      <label for="inputPisoReal">Real Piso</label>
+      <input type="number" id="inputPisoReal" value="0" min="0" max="927" placeholder="0">
+    </div>
+
+    <div class="kpi amber">
+      <div class="num" id="kpiPisoUtilPct">0%</div>
+      <div class="lbl">% Util. Piso</div>
+    </div>
+
+    <div class="kpi mint">
+      <div class="num" id="kpiPisoDisp">927</div>
+      <div class="pct" id="kpiPisoDispPct">100%</div>
+      <div class="lbl">Disp. Piso</div>
+    </div>
+  </div>
 </div>
 
 <div class="legend">
@@ -183,6 +254,7 @@
 <script>
 /* ===================== CONFIGURACIÓN ===================== */
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv';
+const BASE_POSICIONES_PISO = 927;
 
 let RACKS = {};
 
@@ -248,10 +320,7 @@ async function cargarDatos() {
       throw new Error('No se encontraron las columnas requeridas (RACK, UBIC, NIVEL) en las primeras filas.');
     }
 
-    // Mapeo robusto para Columna Q (Cant.) e índice fallback 16 (A=0, Q=16)
     const colCantIdx = idx['CANT.'] ?? idx['CANT'] ?? idx['CANTIDAD'] ?? idx['QTY'] ?? 16;
-    
-    // Mapeo para Columna N (SAP-WARE) e índice fallback 13 (A=0, N=13)
     const colSapIdx = idx['SAP-WARE'] ?? idx['SAP WARE'] ?? idx['COD-SAP'] ?? idx['COD SAP'] ?? 13;
 
     RACKS = {};
@@ -291,9 +360,25 @@ async function cargarDatos() {
   }
 }
 
-/* ===================== RENDER ===================== */
+/* ===================== RENDER Y CÁLCULOS ===================== */
 function ocupado(reg) {
   return reg.sapware !== '' && reg.sapware !== null && reg.sapware !== undefined;
+}
+
+function calcularPiso() {
+  const inputReal = document.getElementById('inputPisoReal');
+  let real = parseFloat(inputReal.value) || 0;
+
+  if (real < 0) real = 0;
+  if (real > BASE_POSICIONES_PISO) real = BASE_POSICIONES_PISO;
+
+  const utilPct = ((real / BASE_POSICIONES_PISO) * 100).toFixed(1);
+  const disponible = BASE_POSICIONES_PISO - real;
+  const dispPct = ((disponible / BASE_POSICIONES_PISO) * 100).toFixed(1);
+
+  document.getElementById('kpiPisoUtilPct').textContent = utilPct + '%';
+  document.getElementById('kpiPisoDisp').textContent = disponible;
+  document.getElementById('kpiPisoDispPct').textContent = dispPct + '%';
 }
 
 function renderTodo(filtro) {
@@ -313,12 +398,27 @@ function renderTodo(filtro) {
     cont.appendChild(renderRackCard(rackId, regs));
   });
 
-  document.getElementById('resumenGeneral').style.display = 'flex';
+  const totalVacias = totalPos - totalLlenas;
+  const llenasPct = totalPos ? ((totalLlenas / totalPos) * 100).toFixed(1) : '0';
+  const vaciasPct = totalPos ? ((totalVacias / totalPos) * 100).toFixed(1) : '0';
+  const pickingPct = totalPos ? ((totalPicking / totalPos) * 100).toFixed(1) : '0';
+
+  document.getElementById('resumenGeneral').style.display = 'block';
   document.getElementById('kpiTotal').textContent = totalPos;
+  
   document.getElementById('kpiLlenas').textContent = totalLlenas;
-  document.getElementById('kpiVacias').textContent = totalPos - totalLlenas;
+  document.getElementById('kpiLlenasPct').textContent = llenasPct + '%';
+  
+  document.getElementById('kpiVacias').textContent = totalVacias;
+  document.getElementById('kpiVaciasPct').textContent = vaciasPct + '%';
+  
   document.getElementById('kpiPicking').textContent = totalPicking;
+  document.getElementById('kpiPickingPct').textContent = pickingPct + '%';
+  
   document.getElementById('kpiRacks').textContent = ids.length;
+
+  // Actualizar calculador de piso
+  calcularPiso();
 }
 
 function renderRackCard(rackId, registros) {
@@ -342,7 +442,7 @@ function renderRackCard(rackId, registros) {
   const card = document.createElement('div');
   card.className = 'rack-card';
 
-  // --- Cabecera / resumen de ocupación ---
+  // Cabecera del rack
   const total = registros.length;
   const llenas = registros.filter(ocupado).length;
   const vacias = total - llenas;
@@ -361,7 +461,7 @@ function renderRackCard(rackId, registros) {
   `;
   card.appendChild(head);
 
-  // --- Grid del rack ---
+  // Grid del rack
   const wrap = document.createElement('div');
   wrap.className = 'rack-grid-wrap';
   const table = document.createElement('table');
@@ -419,7 +519,7 @@ function renderRackCard(rackId, registros) {
   wrap.appendChild(table);
   card.appendChild(wrap);
 
-  // --- Resumen lateral ---
+  // Resumen lateral del rack
   const resumen = document.createElement('div');
   resumen.className = 'resumen-rack';
   resumen.innerHTML = `
@@ -439,6 +539,7 @@ function renderRackCard(rackId, registros) {
 /* ===================== EVENTOS ===================== */
 document.getElementById('btnRefrescar').addEventListener('click', cargarDatos);
 document.getElementById('buscador').addEventListener('input', e => renderTodo(e.target.value.trim()));
+document.getElementById('inputPisoReal').addEventListener('input', calcularPiso);
 
 cargarDatos();
 </script>
