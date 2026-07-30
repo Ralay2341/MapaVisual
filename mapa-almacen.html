@@ -256,6 +256,9 @@ async function cargarDatos() {
       if (!rack) continue;
       if (/^\d$/.test(rack)) rack = '0' + rack; // normaliza 1 -> 01
       
+      // Tomamos el valor de la Columna N (SAP-WARE)
+      const valorSapWare = (fila[idx['SAP-WARE']] || fila[idx['SAP WARE']] || '').trim();
+
       if (!RACKS[rack]) RACKS[rack] = [];
       RACKS[rack].push({
         ubicacion: fila[idx['UBICACION']] || '',
@@ -265,12 +268,11 @@ async function cargarDatos() {
         ubic: (fila[idx['UBIC']] || '').trim(),
         nivel: (fila[idx['NIVEL']] || '').trim(),
         tipo: (fila[idx['TIPO']] || '').trim().toUpperCase(),
-        codsap: fila[idx['COD-SAP']] || fila[idx['COD SAP']] || '',
+        codsap: valorSapWare,  // <--- Ahora lee la Columna N como Código SAP
         cant: fila[idx['CANT']] || '',
-        sapware: fila[idx['SAP-WARE']] || fila[idx['SAP WARE']] || ''
+        sapware: valorSapWare // <--- Lee la Columna N para validar Ocupado/Vacío
       });
     }
-
     status.style.display = 'none';
     document.getElementById('ts').textContent = new Date().toLocaleString('es-CL');
     renderTodo();
