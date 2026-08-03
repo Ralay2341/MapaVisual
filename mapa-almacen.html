@@ -190,7 +190,7 @@
     <!-- BLOQUE 1: UBICACIONES DE RACK -->
     <div class="kpi">
       <div class="num" id="kpiTotal">–</div>
-      <div class="lbl">Pos. Racks</div>
+      <div class="lbl">Pos. Útiles</div>
     </div>
     
     <div class="kpi amber">
@@ -247,7 +247,7 @@
   <span><i class="swatch ocupado"></i>Ocupado (X)</span>
   <span><i class="swatch vacio"></i>Vacío</span>
   <span><i class="swatch picking">P</i>Picking (P)</span>
-  <span><i class="swatch pilar"></i>Pilar</span>
+  <span><i class="swatch pilar"></i>Pilar (Excluido)</span>
   <span>N = Nivel (N1 abajo)</span>
 </div>
 
@@ -395,23 +395,27 @@ function renderTodo(filtro) {
   let ids = Object.keys(RACKS).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
   if (filtro) ids = ids.filter(id => id.toLowerCase().includes(filtro.toLowerCase()));
 
-  let totalPos = 0, totalLlenas = 0, totalPicking = 0;
+  let totalPosUtiles = 0, totalLlenas = 0, totalPicking = 0;
 
   ids.forEach(rackId => {
     const regs = RACKS[rackId];
-    totalPos += regs.length;
-    totalLlenas += regs.filter(ocupado).length;
-    totalPicking += regs.filter(r => r.tipo === 'PICKING').length;
+    
+    // Filtramos los pilares para los cálculos del resumen
+    const utiles = regs.filter(r => r.tipo !== 'PILAR');
+    totalPosUtiles += utiles.length;
+    totalLlenas += utiles.filter(ocupado).length;
+    totalPicking += utiles.filter(r => r.tipo === 'PICKING').length;
+    
     cont.appendChild(renderRackCard(rackId, regs));
   });
 
-  const totalVacias = totalPos - totalLlenas;
-  const llenasPct = totalPos ? ((totalLlenas / totalPos) * 100).toFixed(1) : '0';
-  const vaciasPct = totalPos ? ((totalVacias / totalPos) * 100).toFixed(1) : '0';
-  const pickingPct = totalPos ? ((totalPicking / totalPos) * 100).toFixed(1) : '0';
+  const totalVacias = totalPosUtiles - totalLlenas;
+  const llenasPct = totalPosUtiles ? ((totalLlenas / totalPosUtiles) * 100).toFixed(1) : '0';
+  const vaciasPct = totalPosUtiles ? ((totalVacias / totalPosUtiles) * 100).toFixed(1) : '0';
+  const pickingPct = totalPosUtiles ? ((totalPicking / totalPosUtiles) * 100).toFixed(1) : '0';
 
   document.getElementById('resumenGeneral').style.display = 'block';
-  document.getElementById('kpiTotal').textContent = totalPos;
+  document.getElementById('kpiTotal').textContent = totalPosUtiles;
   
   document.getElementById('kpiLlenas').textContent = totalLlenas;
   document.getElementById('kpiLlenasPct').textContent = llenasPct + '%';
@@ -448,12 +452,17 @@ function renderRackCard(rackId, registros) {
   const card = document.createElement('div');
   card.className = 'rack-card';
 
-  const total = registros.length;
-  const llenas = registros.filter(ocupado).length;
-  const vacias = total - llenas;
-  const pct = total ? Math.round((llenas / total) * 100) : 0;
-  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0, PICKING: 0 };
-  registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
+  // --- CÁLCULOS EXCLUYENDO PILARES ---
+  const pilaresCount = registros.filter(r => r.tipo === 'PILAR').length;
+  const registrosUtiles = registros.filter(r => r.tipo !== 'PILAR');
+  const totalUtiles = registrosUtiles.length; // Ejemplo: 784
+  
+  const llenas = registrosUtiles.filter(ocupado).length;
+  const vacias = totalUtiles - llenas;
+  const pct = totalUtiles ? Math.round((llenas / totalUtiles) * 100) : 0;
+  
+  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: pilaresCount, PICKING: 0 };
+  registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo) && r.tipo !== 'PILAR') tipoCount[r.tipo]++; });
   const primero = registros[0] || {};
 
   const head = document.createElement('div');
@@ -462,10 +471,11 @@ function renderRackCard(rackId, registros) {
     <h3>RACK ${rackId}</h3>
     <div class="meta">${primero.almacen || ''} ${primero.sector ? '· Sector ' + primero.sector : ''}</div>
     <div class="occ-bar"><i style="width:${pct}%"></i></div>
-    <div class="occ-pct">${pct}% ocupado (${llenas}/${total})</div>
+    <div class="occ-pct">${pct}% ocupado (${llenas}/${totalUtiles})</div>
   `;
   card.appendChild(head);
 
+  // --- GRID DEL RACK ---
   const wrap = document.createElement('div');
   wrap.className = 'rack-grid-wrap';
   const table = document.createElement('table');
@@ -523,16 +533,18 @@ function renderRackCard(rackId, registros) {
   wrap.appendChild(table);
   card.appendChild(wrap);
 
+  // --- RESUMEN LATERAL POR RACK ---
   const resumen = document.createElement('div');
   resumen.className = 'resumen-rack';
   resumen.innerHTML = `
     <div class="k">Vacías</div><div class="v">${vacias}</div>
     <div class="k">Llenas</div><div class="v">${llenas}</div>
+    <div class="k">Útiles</div><div class="v">${totalUtiles}</div>
     <div class="k">Picking</div><div class="v" style="color:var(--picking);">${tipoCount.PICKING}</div>
     <div class="k">Simple</div><div class="v">${tipoCount.SIMPLE}</div>
     <div class="k">Doble</div><div class="v">${tipoCount.DOBLE}</div>
     <div class="k">Bajo</div><div class="v">${tipoCount.BAJO}</div>
-    <div class="k">Pilar</div><div class="v">${tipoCount.PILAR}</div>
+    <div class="k">Pilar</div><div class="v" style="color:var(--pillar);">${pilaresCount}</div>
   `;
   card.appendChild(resumen);
 
