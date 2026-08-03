@@ -71,9 +71,6 @@
   .dashboard-top{
     display:flex; flex-direction:column; gap:16px; margin-bottom:26px;
   }
-  .resumen-section-title{
-    font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); margin-bottom:8px;
-  }
   .resumen-general{
     display:flex; gap:12px; flex-wrap:wrap; align-items:stretch;
   }
@@ -95,7 +92,7 @@
   }
   .kpi-input label{font-size:10px; color:var(--amber); text-transform:uppercase; letter-spacing:.08em; font-weight:700;}
 
-  /* Separador vertical para los bloques */
+  /* Separador vertical */
   .v-divider{width:1px; background:var(--border); margin:0 4px;}
 
   /* ---------- Legend ---------- */
@@ -155,8 +152,15 @@
   .resumen-rack .k{color:var(--text-muted);}
   .resumen-rack .v{font-weight:700; text-align:right; font-family:'Space Grotesk',sans-serif;}
 
-  footer{margin-top:36px; font-size:11px; color:var(--text-muted); text-align:center;}
+  /* ---------- Footer & Copyright ---------- */
+  footer{
+    margin-top:40px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:11px; color:var(--text-muted); text-align:center; display:flex; flex-direction:column; gap:6px;
+  }
   footer a{color:var(--amber); text-decoration:none;}
+  .copyright{
+    font-weight:500; color:var(--text); font-size:11px; letter-spacing:.02em;
+  }
 
   @media (max-width:768px){
     header{flex-direction:column; align-items:flex-start;}
@@ -249,7 +253,10 @@
 
 <div id="racks"></div>
 
-<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv" target="_blank">Google Sheet</a></footer>
+<footer>
+  <div class="copyright">Propiedad de: Raul Layseca Beas (Ley 17.336)</div>
+  <div>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv" target="_blank">Google Sheet</a></div>
+</footer>
 
 <script>
 /* ===================== CONFIGURACIÓN ===================== */
@@ -417,7 +424,6 @@ function renderTodo(filtro) {
   
   document.getElementById('kpiRacks').textContent = ids.length;
 
-  // Actualizar calculador de piso
   calcularPiso();
 }
 
@@ -442,7 +448,6 @@ function renderRackCard(rackId, registros) {
   const card = document.createElement('div');
   card.className = 'rack-card';
 
-  // Cabecera del rack
   const total = registros.length;
   const llenas = registros.filter(ocupado).length;
   const vacias = total - llenas;
@@ -461,7 +466,6 @@ function renderRackCard(rackId, registros) {
   `;
   card.appendChild(head);
 
-  // Grid del rack
   const wrap = document.createElement('div');
   wrap.className = 'rack-grid-wrap';
   const table = document.createElement('table');
@@ -519,7 +523,6 @@ function renderRackCard(rackId, registros) {
   wrap.appendChild(table);
   card.appendChild(wrap);
 
-  // Resumen lateral del rack
   const resumen = document.createElement('div');
   resumen.className = 'resumen-rack';
   resumen.innerHTML = `
