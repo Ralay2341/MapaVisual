@@ -192,6 +192,12 @@
       <div class="num" id="kpiTotal">–</div>
       <div class="lbl">Pos. Racks</div>
     </div>
+
+    <div class="kpi mint">
+      <div class="num" id="kpiDisponibles">–</div>
+      <div class="pct" id="kpiDisponiblesPct">0%</div>
+      <div class="lbl">Disponibles</div>
+    </div>
     
     <div class="kpi amber">
       <div class="num" id="kpiLlenas">–</div>
@@ -392,24 +398,30 @@ function renderTodo(filtro) {
   let ids = Object.keys(RACKS).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
   if (filtro) ids = ids.filter(id => id.toLowerCase().includes(filtro.toLowerCase()));
 
-  let totalPos = 0, totalLlenas = 0, totalPicking = 0;
+  let totalPos = 0, totalLlenas = 0, totalPicking = 0, totalPilar = 0;
 
   ids.forEach(rackId => {
     const regs = RACKS[rackId];
     totalPos += regs.length;
     totalLlenas += regs.filter(ocupado).length;
     totalPicking += regs.filter(r => r.tipo === 'PICKING').length;
+    totalPilar += regs.filter(r => r.tipo === 'PILAR').length;
     cont.appendChild(renderRackCard(rackId, regs));
   });
 
+  const totalDisponibles = totalPos - totalPilar;
   const totalVacias = totalPos - totalLlenas;
+  const disponiblesPct = totalPos ? ((totalDisponibles / totalPos) * 100).toFixed(1) : '0';
   const llenasPct = totalPos ? ((totalLlenas / totalPos) * 100).toFixed(1) : '0';
   const vaciasPct = totalPos ? ((totalVacias / totalPos) * 100).toFixed(1) : '0';
   const pickingPct = totalPos ? ((totalPicking / totalPos) * 100).toFixed(1) : '0';
 
   document.getElementById('resumenGeneral').style.display = 'block';
   document.getElementById('kpiTotal').textContent = totalPos;
-  
+
+  document.getElementById('kpiDisponibles').textContent = totalDisponibles;
+  document.getElementById('kpiDisponiblesPct').textContent = disponiblesPct + '%';
+
   document.getElementById('kpiLlenas').textContent = totalLlenas;
   document.getElementById('kpiLlenasPct').textContent = llenasPct + '%';
   
