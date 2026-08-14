@@ -71,6 +71,9 @@
   .dashboard-top{
     display:flex; flex-direction:column; gap:16px; margin-bottom:26px;
   }
+  .resumen-section-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); margin-bottom:8px;
+  }
   .resumen-general{
     display:flex; gap:12px; flex-wrap:wrap; align-items:stretch;
   }
@@ -92,7 +95,7 @@
   }
   .kpi-input label{font-size:10px; color:var(--amber); text-transform:uppercase; letter-spacing:.08em; font-weight:700;}
 
-  /* Separador vertical */
+  /* Separador vertical para los bloques */
   .v-divider{width:1px; background:var(--border); margin:0 4px;}
 
   /* ---------- Legend ---------- */
@@ -121,7 +124,11 @@
   .occ-bar > i{display:block; height:100%; background:var(--amber);}
   .occ-pct{font-size:11px; color:var(--text-muted);}
 
-  .rack-grid-wrap{overflow-x:auto; flex:1; min-width:260px;}
+  .rack-grid-wrap{overflow-x:auto; flex:1; min-width:0; max-width:100%;}
+  .rack-grid-wrap::-webkit-scrollbar{height:8px;}
+  .rack-grid-wrap::-webkit-scrollbar-track{background:var(--surface-2); border-radius:4px;}
+  .rack-grid-wrap::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+  .rack-grid-wrap::-webkit-scrollbar-thumb:hover{background:var(--amber-dim);}
   .rack-grid{border-collapse:separate; border-spacing:3px; font-size:11px;}
   .rack-grid th{
     color:var(--text-muted); font-weight:500; font-size:10px; padding:2px 4px;
@@ -152,15 +159,8 @@
   .resumen-rack .k{color:var(--text-muted);}
   .resumen-rack .v{font-weight:700; text-align:right; font-family:'Space Grotesk',sans-serif;}
 
-  /* ---------- Footer & Copyright ---------- */
-  footer{
-    margin-top:40px; padding-top:16px; border-top:1px solid var(--border);
-    font-size:11px; color:var(--text-muted); text-align:center; display:flex; flex-direction:column; gap:6px;
-  }
+  footer{margin-top:36px; font-size:11px; color:var(--text-muted); text-align:center;}
   footer a{color:var(--amber); text-decoration:none;}
-  .copyright{
-    font-weight:500; color:var(--text); font-size:11px; letter-spacing:.02em;
-  }
 
   @media (max-width:768px){
     header{flex-direction:column; align-items:flex-start;}
@@ -190,7 +190,7 @@
     <!-- BLOQUE 1: UBICACIONES DE RACK -->
     <div class="kpi">
       <div class="num" id="kpiTotal">–</div>
-      <div class="lbl">Pos. Útiles</div>
+      <div class="lbl">Pos. Racks</div>
     </div>
     
     <div class="kpi amber">
@@ -247,16 +247,13 @@
   <span><i class="swatch ocupado"></i>Ocupado (X)</span>
   <span><i class="swatch vacio"></i>Vacío</span>
   <span><i class="swatch picking">P</i>Picking (P)</span>
-  <span><i class="swatch pilar"></i>Pilar (Excluido)</span>
+  <span><i class="swatch pilar"></i>Pilar</span>
   <span>N = Nivel (N1 abajo)</span>
 </div>
 
 <div id="racks"></div>
 
-<footer>
-  <div class="copyright">Propiedad de: Raul Layseca Beas (Ley 17.336)</div>
-  <div>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv" target="_blank">Google Sheet</a></div>
-</footer>
+<footer>Última actualización: <span id="ts" class="timestamp">–</span> · Fuente: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQcJF5EU6C-hI9ZhuD0z_m84OR0Xrg0T_WHr4uyA52MuYjs1cqJfCEQzQ-zqnr-K8t9lm7eFF_5rYSp/pub?gid=1014860091&single=true&output=csv" target="_blank">Google Sheet</a></footer>
 
 <script>
 /* ===================== CONFIGURACIÓN ===================== */
@@ -395,27 +392,23 @@ function renderTodo(filtro) {
   let ids = Object.keys(RACKS).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
   if (filtro) ids = ids.filter(id => id.toLowerCase().includes(filtro.toLowerCase()));
 
-  let totalPosUtiles = 0, totalLlenas = 0, totalPicking = 0;
+  let totalPos = 0, totalLlenas = 0, totalPicking = 0;
 
   ids.forEach(rackId => {
     const regs = RACKS[rackId];
-    
-    // Filtramos los pilares para los cálculos del resumen
-    const utiles = regs.filter(r => r.tipo !== 'PILAR');
-    totalPosUtiles += utiles.length;
-    totalLlenas += utiles.filter(ocupado).length;
-    totalPicking += utiles.filter(r => r.tipo === 'PICKING').length;
-    
+    totalPos += regs.length;
+    totalLlenas += regs.filter(ocupado).length;
+    totalPicking += regs.filter(r => r.tipo === 'PICKING').length;
     cont.appendChild(renderRackCard(rackId, regs));
   });
 
-  const totalVacias = totalPosUtiles - totalLlenas;
-  const llenasPct = totalPosUtiles ? ((totalLlenas / totalPosUtiles) * 100).toFixed(1) : '0';
-  const vaciasPct = totalPosUtiles ? ((totalVacias / totalPosUtiles) * 100).toFixed(1) : '0';
-  const pickingPct = totalPosUtiles ? ((totalPicking / totalPosUtiles) * 100).toFixed(1) : '0';
+  const totalVacias = totalPos - totalLlenas;
+  const llenasPct = totalPos ? ((totalLlenas / totalPos) * 100).toFixed(1) : '0';
+  const vaciasPct = totalPos ? ((totalVacias / totalPos) * 100).toFixed(1) : '0';
+  const pickingPct = totalPos ? ((totalPicking / totalPos) * 100).toFixed(1) : '0';
 
   document.getElementById('resumenGeneral').style.display = 'block';
-  document.getElementById('kpiTotal').textContent = totalPosUtiles;
+  document.getElementById('kpiTotal').textContent = totalPos;
   
   document.getElementById('kpiLlenas').textContent = totalLlenas;
   document.getElementById('kpiLlenasPct').textContent = llenasPct + '%';
@@ -428,6 +421,7 @@ function renderTodo(filtro) {
   
   document.getElementById('kpiRacks').textContent = ids.length;
 
+  // Actualizar calculador de piso
   calcularPiso();
 }
 
@@ -452,17 +446,13 @@ function renderRackCard(rackId, registros) {
   const card = document.createElement('div');
   card.className = 'rack-card';
 
-  // --- CÁLCULOS EXCLUYENDO PILARES ---
-  const pilaresCount = registros.filter(r => r.tipo === 'PILAR').length;
-  const registrosUtiles = registros.filter(r => r.tipo !== 'PILAR');
-  const totalUtiles = registrosUtiles.length; // Ejemplo: 784
-  
-  const llenas = registrosUtiles.filter(ocupado).length;
-  const vacias = totalUtiles - llenas;
-  const pct = totalUtiles ? Math.round((llenas / totalUtiles) * 100) : 0;
-  
-  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: pilaresCount, PICKING: 0 };
-  registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo) && r.tipo !== 'PILAR') tipoCount[r.tipo]++; });
+  // Cabecera del rack
+  const total = registros.length;
+  const llenas = registros.filter(ocupado).length;
+  const vacias = total - llenas;
+  const pct = total ? Math.round((llenas / total) * 100) : 0;
+  const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0, PICKING: 0 };
+  registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
   const primero = registros[0] || {};
 
   const head = document.createElement('div');
@@ -471,11 +461,11 @@ function renderRackCard(rackId, registros) {
     <h3>RACK ${rackId}</h3>
     <div class="meta">${primero.almacen || ''} ${primero.sector ? '· Sector ' + primero.sector : ''}</div>
     <div class="occ-bar"><i style="width:${pct}%"></i></div>
-    <div class="occ-pct">${pct}% ocupado (${llenas}/${totalUtiles})</div>
+    <div class="occ-pct">${pct}% ocupado (${llenas}/${total})</div>
   `;
   card.appendChild(head);
 
-  // --- GRID DEL RACK ---
+  // Grid del rack
   const wrap = document.createElement('div');
   wrap.className = 'rack-grid-wrap';
   const table = document.createElement('table');
@@ -533,18 +523,17 @@ function renderRackCard(rackId, registros) {
   wrap.appendChild(table);
   card.appendChild(wrap);
 
-  // --- RESUMEN LATERAL POR RACK ---
+  // Resumen lateral del rack
   const resumen = document.createElement('div');
   resumen.className = 'resumen-rack';
   resumen.innerHTML = `
     <div class="k">Vacías</div><div class="v">${vacias}</div>
     <div class="k">Llenas</div><div class="v">${llenas}</div>
-    <div class="k">Útiles</div><div class="v">${totalUtiles}</div>
     <div class="k">Picking</div><div class="v" style="color:var(--picking);">${tipoCount.PICKING}</div>
     <div class="k">Simple</div><div class="v">${tipoCount.SIMPLE}</div>
     <div class="k">Doble</div><div class="v">${tipoCount.DOBLE}</div>
     <div class="k">Bajo</div><div class="v">${tipoCount.BAJO}</div>
-    <div class="k">Pilar</div><div class="v" style="color:var(--pillar);">${pilaresCount}</div>
+    <div class="k">Pilar</div><div class="v">${tipoCount.PILAR}</div>
   `;
   card.appendChild(resumen);
 
