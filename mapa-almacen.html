@@ -410,7 +410,9 @@ function renderTodo(filtro) {
   });
 
   const totalDisponibles = totalPos - totalPilar;
-  const totalVacias = totalPos - totalLlenas;
+  // MODIFICACIÓN APLICADA AQUÍ: Se restan los pilares al total de ubicaciones vacías
+  const totalVacias = totalPos - totalLlenas - totalPilar; 
+  
   const disponiblesPct = totalPos ? ((totalDisponibles / totalPos) * 100).toFixed(1) : '0';
   const llenasPct = totalPos ? ((totalLlenas / totalPos) * 100).toFixed(1) : '0';
   const vaciasPct = totalPos ? ((totalVacias / totalPos) * 100).toFixed(1) : '0';
@@ -461,10 +463,14 @@ function renderRackCard(rackId, registros) {
   // Cabecera del rack
   const total = registros.length;
   const llenas = registros.filter(ocupado).length;
-  const vacias = total - llenas;
-  const pct = total ? Math.round((llenas / total) * 100) : 0;
+  
   const tipoCount = { SIMPLE: 0, DOBLE: 0, BAJO: 0, PILAR: 0, PICKING: 0 };
   registros.forEach(r => { if (tipoCount.hasOwnProperty(r.tipo)) tipoCount[r.tipo]++; });
+  
+  // MODIFICACIÓN APLICADA AQUÍ: Se restan los pilares al calcular las vacías por rack
+  const vacias = total - llenas - tipoCount.PILAR;
+  
+  const pct = total ? Math.round((llenas / total) * 100) : 0;
   const primero = registros[0] || {};
 
   const head = document.createElement('div');
